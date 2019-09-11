@@ -1,6 +1,6 @@
 # MyXQL
 
-[![Build Status](https://travis-ci.org/elixir-ecto/myxql.svg?branch=master)](https://travis-ci.org/elixir-ecto/myxql)
+![Build Status](https://github.com/elixir-ecto/myxql/workflows/CI/badge.svg)
 
 MySQL driver for Elixir.
 

@@ -1,7 +1,7 @@
 defmodule TestHelper do
   def opts() do
     [
-      hostname: "127.0.0.1",
+      hostname: System.get_env("MYSQL_HOST") || "127.0.0.1",
       username: "root",
       database: "myxql_test",
       timeout: 5000,

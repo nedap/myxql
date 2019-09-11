@@ -34,7 +34,7 @@ defmodule MyXQL.ClientTest do
     end
 
     test "no password" do
-      opts = [username: "nopassword"] ++ @opts
+      opts = [username: "nopassword", password: nil] ++ @opts
       assert {:ok, _} = Client.connect(opts)
 
       opts = [username: "nopassword", password: ""] ++ @opts
@@ -43,10 +43,7 @@ defmodule MyXQL.ClientTest do
 
     @tag ssl: true
     test "no password (ssl)" do
-      opts = [username: "nopassword", ssl: true] ++ @opts
-      assert {:ok, _} = Client.connect(opts)
-
-      opts = [username: "nopassword", password: ""] ++ @opts
+      opts = [username: "nopassword", password: nil, ssl: true] ++ @opts
       assert {:ok, _} = Client.connect(opts)
     end
 
@@ -289,7 +286,7 @@ defmodule MyXQL.ClientTest do
         {:halt, payload}
       end
 
-      {:ok, state} = Client.do_connect(Client.Config.new(port: port))
+      {:ok, state} = Client.do_connect(Client.Config.new([port: port] ++ @opts))
       assert Client.recv_packets(decoder, :initial, state) == {:ok, "foo"}
     end
   end

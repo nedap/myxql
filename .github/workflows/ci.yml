@@ -1,20 +1,54 @@
-name: Elixir CI
-
-on: push
-
+name: CI
+on: [push, pull_request]
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  # test-elixir:
+  #   runs-on: ubuntu-18.04
+  #   container: elixir:${{ matrix.elixir_version }}-slim
 
-    container:
-      image: elixir:1.9.1-slim
+  #   strategy:
+  #     matrix:
+  #       elixir_version: [1.4, 1.9]
+
+  #   steps:
+  #     - uses: actions/checkout@v1
+  #     - name: Install Dependencies
+  #       run: |
+  #         mix local.rebar --force
+  #         mix local.hex --force
+  #         mix deps.get
+  #     - run: mix test
+
+  test-mysql:
+    runs-on: ubuntu-18.04
+
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql_version }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        volumes:
+          - /var/run/mysqld:/var/run/mysqld
+
+    container: elixir:1.9-slim
+
+    strategy:
+      matrix:
+        # mysql_version: ["5.5", "5.6", "5.7", "8.0"]
+        mysql_version: ["8.0"]
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Install Dependencies
-      run: |
-        mix local.rebar --force
-        mix local.hex --force
-        mix deps.get
-    - name: Run formatter
-      run: mix format --check-formatted
+      - name: Install MySQL Client
+        run: |
+          echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-${{ matrix.mysql_version }}" >> /etc/apt/sources.list.d/mysql.list
+          apt-get update
+          apt-get install --allow-unauthenticated -y mysql-client
+          mysql --version
+      - uses: actions/checkout@v1
+      - name: Install Dependencies
+        run: |
+          mix local.rebar --force
+          mix local.hex --force
+          mix deps.get
+      - run: ls -la /var/run/mysqld
+      - run: MYSQL_HOST=mysql MYSQL_PWD=root MYSQL_UNIX_PORT=/var/run/mysqld.sock mix test
