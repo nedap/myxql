@@ -475,6 +475,11 @@ defmodule MyXQL.Connection do
     end
   end
 
+  # Temporary fix pending real fix from https://github.com/elixir-ecto/myxql/issues/80
+  defp maybe_reprepare(%Query{cache: :statement} = query, %{prepare: :unnamed} = state) do
+    {:ok, query, state}
+  end
+
   defp maybe_reprepare(query, state) do
     if cached_query = queries_get(state, query) do
       {:ok, cached_query, state}
