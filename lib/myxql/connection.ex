@@ -571,6 +571,46 @@ defmodule MyXQL.Connection do
       :ets.lookup_element(state.queries, name, 2)
     rescue
       ArgumentError -> nil
+    end
+  end
+
+  defp queries_get(%{prepare: :unnamed}, %Query{cache: :statement}), do: nil
+
+  defp queries_get(state, %{cache: :statement} = query) do
+    try do
+      :ets.lookup_element(state.queries, cache_key(query), 2)
+    rescue
+      ArgumentError -> nil
+    end
+  end
+
+  defp queries_fetch!(state, query) do
+    queries_get(state, query) || raise ArgumentError, "cannot fetch query #{inspect(query)}"
+  end
+
+  defp cache_key(%MyXQL.Query{cache: :reference, ref: ref}), do: ref
+  defp cache_key(%MyXQL.Query{cache: :statement, statement: statement}), do: statement
+
+  defp prepare(%Query{ref: ref, statement: statement} = query, state) when is_reference(ref) do
+    case Client.com_stmt_prepare(state.client, statement) do
+      {:ok, com_stmt_prepare_ok(statement_id: statement_id, num_params: num_params)} ->
+        query = %{query | num_params: num_params, statement_id: statement_id}
+        queries_put(state, query)
+        {:ok, query, state}
+
+      result ->
+        result(result, query, state)
+    end
+  end
+
+  # Temporary fix pending real fix from https://github.com/elixir-ecto/myxql/issues/80
+  defp maybe_reprepare(%Query{cache: :statement} = query, %{prepare: :unnamed} = state) do
+    {:ok, query, state}
+  end
+
+  defp maybe_reprepare(query, state) do
+    if cached_query = queries_get(state, query) do
+      {:ok, cached_query, state}
     else
       {num_params, statement_id, ref} ->
         %{query | num_params: num_params, statement_id: statement_id, ref: ref}
