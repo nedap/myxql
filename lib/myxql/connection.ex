@@ -77,8 +77,6 @@ defmodule MyXQL.Connection do
     if cached_query = queries_get(state, query) do
       {:ok, cached_query, %{state | last_query: cached_query}}
     else
-      state = maybe_close(query, state)
-
       case prepare(query, state) do
         {:ok, query, state} ->
           {:ok, query, state}
@@ -99,8 +97,6 @@ defmodule MyXQL.Connection do
 
   @impl true
   def handle_execute(%Query{} = query, params, _opts, state) do
-    state = maybe_close(query, state)
-
     with {:ok, query, state} <- maybe_reprepare(query, state),
          result =
            Client.com_stmt_execute(
@@ -465,7 +461,16 @@ defmodule MyXQL.Connection do
   defp cache_key(%MyXQL.Query{cache: :statement, statement: statement}), do: statement
 
   defp prepare(%Query{ref: ref, statement: statement} = query, state) when is_reference(ref) do
-    case Client.com_stmt_prepare(state.client, statement) do
+    res =
+      if state.prepare == :unnamed and not is_nil(state.last_query) and
+           state.last_query.ref != ref do
+        queries_delete(state, state.last_query)
+        Client.com_stmt_close_prepare(state.client, statement, state.last_query.statement_id)
+      else
+        Client.com_stmt_prepare(state.client, statement)
+      end
+
+    case res do
       {:ok, com_stmt_prepare_ok(statement_id: statement_id, num_params: num_params)} ->
         query = %{query | num_params: num_params, statement_id: statement_id}
         queries_put(state, query)
@@ -493,15 +498,6 @@ defmodule MyXQL.Connection do
       {:ok, query, state}
     end
   end
-
-  defp maybe_close(%{ref: ref}, %{last_query: %{ref: ref}} = state), do: state
-
-  defp maybe_close(_query, %{prepare: :unnamed, last_query: last_query} = state)
-       when last_query != nil do
-    close(last_query, state)
-  end
-
-  defp maybe_close(_query, state), do: state
 
   defp close(query, state) do
     :ok = Client.com_stmt_close(state.client, query.statement_id)

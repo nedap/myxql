@@ -114,6 +114,13 @@ defmodule MyXQL.Client do
     end
   end
 
+  def com_stmt_close_prepare(client, statement, close_statement_id) do
+    with :ok <- send_com(client, [{:com_stmt_close, close_statement_id},
+                                  {:com_stmt_prepare, statement}]) do
+      recv_packets(client, &decode_com_stmt_prepare_response/3, :initial)
+    end
+  end
+
   def com_stmt_execute(client, statement_id, params, cursor_type) do
     with :ok <- send_com(client, {:com_stmt_execute, statement_id, params, cursor_type}) do
       recv_packets(client, &decode_com_stmt_execute_response/3, :initial)
@@ -140,6 +147,12 @@ defmodule MyXQL.Client do
   def disconnect(%{sock: {sock_mod, sock}}) do
     sock_mod.close(sock)
     :ok
+  end
+
+  def send_com(client, coms) when is_list(coms) do
+    sequence_num = 0
+    payload = Enum.reduce(coms, [], &[&2 | encode_packet(encode_com(&1), sequence_num, @default_max_packet_size)])
+    send_data(client, payload)
   end
 
   def send_com(client, com) do
