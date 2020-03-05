@@ -608,7 +608,9 @@ defmodule MyXQL.Connection do
   defp cache_key(%MyXQL.Query{cache: :statement, statement: statement}), do: statement
 
   defp prepare(%Query{ref: ref} = query, state) when is_reference(ref) do
-    case prepare_maybe_close(query, state) do
+    {state, response} = prepare_maybe_close(query, state)
+
+    case response do
       {:ok, com_stmt_prepare_ok(statement_id: statement_id, num_params: num_params)} ->
         query = %{query | num_params: num_params, statement_id: statement_id}
         queries_put(state, query)
@@ -623,13 +625,15 @@ defmodule MyXQL.Connection do
         %{ref: newref} = query,
         %{prepare: :unnamed, last_query: %{ref: oldref} = last_query} = state
       )
-      when last_query != nil and oldref != newref do
-    queries_delete(state, state.last_query)
-    Client.com_stmt_close_prepare(state.client, query.statement, last_query.statement_id)
+      when oldref != newref do
+    queries_delete(state, last_query)
+
+    {%{state | last_query: nil},
+     Client.com_stmt_close_prepare(state.client, query.statement, last_query.statement_id)}
   end
 
   def prepare_maybe_close(query, state) do
-    Client.com_stmt_prepare(state.client, query.statement)
+    {state, Client.com_stmt_prepare(state.client, query.statement)}
   end
 
  # Temporary fix pending real fix from https://github.com/elixir-ecto/myxql/issues/80
