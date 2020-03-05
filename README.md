@@ -85,22 +85,23 @@ See [Mariaex Compatibility](https://github.com/elixir-ecto/myxql/blob/master/MAR
 ## Data representation
 
 ```
-MySQL           Elixir
------           ------
-NULL            nil
-bool            1 | 0
-int             42
-float           42.0
-decimal         #Decimal<42.0> *
-date            ~D[2013-10-12] **
-time            ~T[00:37:14]
-datetime        ~N[2013-10-12 00:37:14] **, ***
-timestamp       #DateTime<2013-10-12 00:37:14Z> ***
-json            %{"foo" => "bar"} ****
-char            "é"
-text            "myxql"
-binary          <<1, 2, 3>>
-bit             <<1::size(1), 0::size(1)>>
+MySQL                Elixir
+-----                ------
+NULL                 nil
+bool                 1 | 0
+int                  42
+float                42.0
+decimal              #Decimal<42.0> *
+date                 ~D[2013-10-12] **
+time                 ~T[00:37:14]
+datetime             ~N[2013-10-12 00:37:14] **, ***
+timestamp            ~U[2013-10-12 00:37:14Z] ***
+json                 %{"foo" => "bar"} ****
+char                 "é"
+text                 "myxql"
+binary               <<1, 2, 3>>
+bit                  <<1::size(1), 0::size(1)>>
+point, polygon, ...  %Geo.Point{coordinates: {0.0, 1.0}}, ... *****
 ```
 
 \* See [Decimal](https://github.com/ericmj/decimal)
@@ -112,9 +113,13 @@ bit             <<1::size(1), 0::size(1)>>
 \*\*\*\* MySQL added a native JSON type in version 5.7.8, if you're using earlier versions,
 remember to use TEXT column for your JSON field.
 
+\*\*\*\*\* See "Geometry support" section below
+
 ## JSON support
 
-MyXQL comes with JSON support out of the box via the [Jason](https://github.com/michalmuskala/jason) library. To use it, add `:jason` to your dependencies:
+MyXQL comes with JSON support via the [Jason](https://github.com/michalmuskala/jason) library.
+
+To use it, add `:jason` to your dependencies:
 
 ```elixir
 {:jason, "~> 1.0"}
@@ -125,6 +130,22 @@ You can customize it to use another library via the `:json_library` configuratio
 ```elixir
 config :myxql, :json_library, SomeJSONModule
 ```
+
+## Geometry support
+
+MyXQL comes with Geometry types support via the [Geo](https://github.com/bryanjos/geo) package.
+
+To use it, add `:geo` to your dependencies:
+
+```elixir
+{:geo, "~> 3.3"}
+```
+
+Note, some structs like `%Geo.PointZ{}` does not have equivalent on the MySQL server side and thus
+shouldn't be used.
+
+If you're using MyXQL geometry types with Ecto and need to for example accept a WKT format as user
+input, consider implementing an [custom Ecto type](https://hexdocs.pm/ecto/Ecto.Type.html).
 
 ## Contributing
 
