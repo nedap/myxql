@@ -88,22 +88,6 @@ defmodule MyXQL.Connection do
   end
 
   @impl true
-<<<<<<< HEAD
-=======
-  def handle_execute(%Query{} = query, params, _opts, state) do
-    with {:ok, query, state} <- maybe_reprepare(query, state),
-         result =
-           Client.com_stmt_execute(
-             state.client,
-             query.statement_id,
-             params,
-             :cursor_type_no_cursor
-           ) do
-      result(result, query, state)
-    end
-  end
-
->>>>>>> 64eea84 (Merge close and prepare statement packets in unnamed mode)
   def handle_execute(%TextQuery{statement: statement} = query, [], _opts, state) do
     Client.com_query(state.client, statement, result_state(query))
     |> result(query, state)
