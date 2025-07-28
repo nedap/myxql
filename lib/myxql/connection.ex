@@ -455,17 +455,9 @@ defmodule MyXQL.Connection do
   defp rename_query(%{prepare: :unnamed}, query),
     do: %{query | name: ""}
 
-  defp prepare(query, state) do
-    case Client.com_stmt_prepare(state.client, query.statement) do
-      {:ok, com_stmt_prepare_ok(statement_id: statement_id, num_params: num_params)} ->
-        ref = make_ref()
-        query = %{query | num_params: num_params, statement_id: statement_id, ref: ref}
-        queries_put(state, query)
-        {:ok, query, %{state | last_ref: ref}}
-
-      result ->
-        result(result, query, state)
-    end
+   # Temporary fix pending real fix from https://github.com/elixir-ecto/myxql/issues/80
+  defp maybe_reprepare(%Query{cache: :statement} = query, %{prepare: :unnamed} = state) do
+    {:ok, query, state}
   end
 
   defp maybe_reprepare(%{ref: ref} = query, %{last_ref: ref} = state), do: {:ok, query, state}
@@ -605,6 +597,19 @@ defmodule MyXQL.Connection do
     end
   end
 
+  defp prepare(query, state) do
+    case Client.com_stmt_prepare(state.client, query.statement) do
+      {:ok, com_stmt_prepare_ok(statement_id: statement_id, num_params: num_params)} ->
+        ref = make_ref()
+        query = %{query | num_params: num_params, statement_id: statement_id, ref: ref}
+        queries_put(state, query)
+        {:ok, query, %{state | last_ref: ref}}
+
+      result ->
+        result(result, query, state)
+    end
+  end
+
   def prepare_maybe_close(
         %{ref: newref} = query,
         %{prepare: :unnamed, last_query: %{ref: oldref} = last_query} = state
@@ -618,24 +623,6 @@ defmodule MyXQL.Connection do
 
   def prepare_maybe_close(query, state) do
     {state, Client.com_stmt_prepare(state.client, query.statement)}
-  end
-
- # Temporary fix pending real fix from https://github.com/elixir-ecto/myxql/issues/80
-  defp maybe_reprepare(%Query{cache: :statement} = query, %{prepare: :unnamed} = state) do
-    {:ok, query, state}
-  end
-
-  defp maybe_reprepare(%{ref: ref}, %{last_query: %{ref: ref}} = state) do
-    {:ok, state.last_query, state}
-  end
-
-  defp maybe_reprepare(query, state) do
-    if cached_query = queries_get(state, query) do
-      {:ok, cached_query, state}
-    else
-      {num_params, statement_id, ref} ->
-        %{query | num_params: num_params, statement_id: statement_id, ref: ref}
-    end
   end
 
   defp queries_get(state, %{cache: :statement, name: name, statement: statement} = query) do
