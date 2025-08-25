@@ -58,6 +58,7 @@ defmodule MyXQL.Connection do
     if state.before_disconnect_callback do
       state.before_disconnect_callback.(state)
     end
+
     :ets.delete(state.queries)
     Client.disconnect(state.client)
   end
