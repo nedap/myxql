@@ -13,7 +13,8 @@ defmodule MyXQL.Connection do
     prepare: :named,
     queries: nil,
     transaction_status: :idle,
-    last_ref: nil
+    last_ref: nil,
+    before_disconnect_callback: nil
   ]
 
   @impl true
@@ -31,6 +32,7 @@ defmodule MyXQL.Connection do
           client: client,
           prepare: prepare,
           disconnect_on_error_codes: Keyword.fetch!(opts, :disconnect_on_error_codes),
+          before_disconnect_callback: Keyword.get(opts, :before_disconnect_callback),
           ping_timeout: ping_timeout,
           queries: queries_new()
         }
@@ -53,6 +55,10 @@ defmodule MyXQL.Connection do
 
   @impl true
   def disconnect(_reason, state) do
+    if state.before_disconnect_callback do
+      state.before_disconnect_callback.(state)
+    end
+
     :ets.delete(state.queries)
     Client.disconnect(state.client)
   end
